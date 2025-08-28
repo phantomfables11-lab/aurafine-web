@@ -8,6 +8,7 @@ import { createClient } from '../lib/supabase-browser';
 const links = [
   { href: '/', label: 'Home' },
   { href: '/messages', label: 'Messages' },
+  { href: '/health', label: 'Health' }, // ← added
 ];
 
 export default function Navbar() {
@@ -17,23 +18,26 @@ export default function Navbar() {
   useEffect(() => {
     const supabase = createClient();
 
-    // initial load
-    supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? null);
+    // Prime current session email
+    supabase.auth.getSession().then(({ data }) => {
+      setEmail(data.session?.user?.email ?? null);
     });
 
-    // keep in sync with auth changes
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+    // Keep in sync with auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_evt, session) => {
       setEmail(session?.user?.email ?? null);
     });
-    return () => sub.subscription.unsubscribe();
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
-  const supabase = createClient();
-  await supabase.auth.signOut();
-  setEmail(null); // force UI to show "Login" immediately
-};
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setEmail(null);
+  };
 
   return (
     <header className="border-b bg-white">
@@ -55,13 +59,13 @@ export default function Navbar() {
           ))}
         </ul>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-3 text-sm">
           {email ? (
             <>
-              <span className="text-sm text-gray-600">{email}</span>
+              <span className="hidden sm:inline">{email}</span>
               <button
                 onClick={signOut}
-                className="rounded-full border px-3 py-1 text-sm hover:bg-gray-100"
+                className="rounded-full px-3 py-1 hover:bg-gray-100"
               >
                 Sign out
               </button>
@@ -69,7 +73,9 @@ export default function Navbar() {
           ) : (
             <Link
               href="/login"
-              className="rounded-full px-3 py-1 text-sm hover:bg-gray-100"
+              className={`rounded-full px-3 py-1 hover:bg-gray-100 ${
+                pathname === '/login' ? 'font-semibold' : ''
+              }`}
             >
               Login
             </Link>
